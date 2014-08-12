@@ -1,20 +1,51 @@
-# Reproducible Research: Peer Assessment 1
+---
+title: "PA1_template"
+author: "Hamid R. Darabi"
+date: "Tuesday, August 12, 2014"
+output: html_document
+---
 
+In the first part of this assignment I want to import the data.
 
-## Loading and preprocessing the data
-
-
-
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+library(plyr)
+unzip("activity.zip")
+df  <- read.csv("activity.csv")
+dfn <- df[ complete.cases(df), ]
+ddata <- ddply(dfn, .(date) , summarize , mean = mean(steps) )
+hist(ddata$mean, breaks=10, col="green", main="Average Daily Steps Histogram", xlab="Number of Steps")
+ddata <- ddply(dfn, .(date) , summarize , sum = sum(steps) )
+sprintf("Mean of daily steps is %0.2f and median is %.02f", mean(ddata$sum), median(ddata$sum), digits=2)
+oldmean <- mean(ddata$sum)
+oldmedian <- median(ddata$sum)
+```
+In the second section of the assignment the daily pattern of steps is analyzed.
+```{r}
+ddata <- ddply(dfn, .(interval) , summarize , mean = mean(steps) )
+plot.ts( ddata$mean , main = "Average Steps per Time Interval")
+sprintf("Maximum number of steps is on : %d", ddata[ ddata$mean == max(ddata$mean) ,]$interval )
+```
+In this section I need to deal with missing values. I replace them with the same interval mean from all days.
+```{r}
+sprintf("There are %d rows with missing values.", nrow(df)-nrow(dfn))
+ddata <- ddply(dfn, .(interval) , summarize , mean = mean(steps) )
+dfnomis <- merge(df, ddata)
+dfnomis[ is.na(dfnomis$steps),"steps"] <- dfnomis[is.na(dfnomis$steps),"mean"] 
+dfnomis$mean <- NULL
+ddata <- ddply(dfn, .(date) , summarize , sum = sum(steps) )
+hist(ddata$sum, breaks=10, col="green", main="Average Daily Steps Histogram", xlab="Number of Steps")
+sprintf("Mean of daily steps is %0.2f and median is %.02f", mean(ddata$sum), median(ddata$sum), digits=2)
+sprintf("The changes because of filling missing values are: mean: %f and median %f", mean(ddata$sum)-oldmean, median(ddata$sum)-oldmedian )
+```
+The last section of the assignment is about the pattern change from weekdays to weekends. I plot two timeseries representing each one to compare them.
+```{r}
+dfnomis$date <- as.Date(dfnomis$date)
+dfnomis$isweekend <- factor( weekdays(dfnomis$date) %in% c("Sunday", "Saturday"), labels=c("weekday","weekend"))
+selected <- dfnomis[dfnomis$isweekend == "weekday" ,]
+ddata <- ddply(selected, .(interval) , summarize , mean = mean(steps) )
+par(mfrow=c(2,1),mar = rep(2, 4))
+plot.ts( ddata$mean , main = "Average Steps in Weekdays")
+selected <- dfnomis[dfnomis$isweekend == "weekend" ,]
+ddata <- ddply(selected, .(interval) , summarize , mean = mean(steps) )
+plot.ts( ddata$mean , main = "Average Steps in Weekends")
+```
